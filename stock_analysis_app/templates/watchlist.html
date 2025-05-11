@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0"><i class="fas fa-star"></i> Stock Watchlist</h3>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <form id="addStockForm" class="d-flex">
+                                    <input type="text" id="newStockSymbol" class="form-control" placeholder="Enter stock ticker symbol (e.g., AAPL)" required>
+                                    <button type="submit" class="btn btn-primary ms-2">
+                                        <i class="fas fa-plus"></i> Add
+                                    </button>
+                                </form>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <button id="refreshWatchlist" class="btn btn-outline-secondary">
+                                    <i class="fas fa-sync-alt"></i> Refresh Data
+                                </button>
+                                <button id="clearWatchlist" class="btn btn-outline-danger ms-2">
+                                    <i class="fas fa-trash-alt"></i> Clear Watchlist
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="alertMessage" class="alert" style="display: none;"></div>
+                    
+                    <div id="loadingSpinner" class="text-center my-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading watchlist data...</p>
+                    </div>
+                    
+                    <div id="watchlistTable" class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Company Name</th>
+                                    <th>Sector</th>
+                                    <th>Price</th>
+                                    <th>Change</th>
+                                    <th class="d-none d-md-table-cell">Market Cap</th>
+                                    <th class="d-none d-lg-table-cell">Intangible Assets</th>
+                                    <th class="d-none d-lg-table-cell">Current Ratio</th>
+                                    <th class="d-none d-xl-table-cell">Institutional Ownership</th>
+                                    <th class="d-none d-xl-table-cell">Insider Ownership</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="watchlistBody">
+                                <!-- Watchlist items will be added here dynamically -->
+                                <tr id="emptyWatchlist">
+                                    <td colspan="11" class="text-center">
+                                        Your watchlist is empty. Add stocks above to track them.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load watchlist data on page load
+    loadWatchlistData();
+    
+    // Setup form submission handler
+    document.getElementById('addStockForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const symbolInput = document.getElementById('newStockSymbol');
+        const symbol = symbolInput.value.trim().toUpperCase();
+        
+        if (symbol) {
+            addToWatchlist(symbol);
+            symbolInput.value = ''; // Clear input field
+        }
+    });
+    
+    // Refresh button handler
+    document.getElementById('refreshWatchlist').addEventListener('click', function() {
+        loadWatchlistData();
+    });
+    
+    // Clear watchlist button handler
+    document.getElementById('clearWatchlist').addEventListener('click', function() {
+        clearWatchlist();
+    });
+});
+
+// Show an alert message
+function showAlert(message, type = 'info') {
+    const alertElement = document.getElementById('alertMessage');
+    alertElement.className = `alert alert-${type}`;
+    alertElement.textContent = message;
+    alertElement.style.display = 'block';
+    
+    // Hide after 5 seconds
+    setTimeout(() => {
+        alertElement.style.display = 'none';
+    }, 5000);
+}
+
+// Add a stock to the watchlist
+function addToWatchlist(symbol) {
+    // Show loading spinner
+    document.getElementById('loadingSpinner').style.display = 'block';
+    
+    fetch('/api/watchlist/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ symbol: symbol })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showAlert(`${symbol} added to watchlist`, 'success');
+            loadWatchlistData(); // Reload the data
+        } else if (data.status === 'exists') {
+            showAlert(data.message, 'warning');
+            document.getElementById('loadingSpinner').style.display = 'none';
+        } else {
+            showAlert(data.message || 'Error adding to watchlist', 'danger');
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Failed to add stock to watchlist', 'danger');
+        document.getElementById('loadingSpinner').style.display = 'none';
+    });
+}
+
+// Remove a stock from the watchlist
+function removeFromWatchlist(id, symbol) {
+    if (!confirm(`Remove ${symbol} from your watchlist?`)) {
+        return;
+    }
+    
+    document.getElementById('loadingSpinner').style.display = 'block';
+    
+    fetch(`/api/watchlist/remove/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showAlert(`${symbol} removed from watchlist`, 'success');
+            loadWatchlistData(); // Reload the data
+        } else {
+            showAlert(data.message || 'Error removing from watchlist', 'danger');
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Failed to remove stock from watchlist', 'danger');
+        document.getElementById('loadingSpinner').style.display = 'none';
+    });
+}
+
+// Load watchlist data
+function loadWatchlistData() {
+    document.getElementById('loadingSpinner').style.display = 'block';
+    
+    fetch('/api/watchlist/data')
+    .then(response => response.json())
+    .then(data => {
+        renderWatchlist(data);
+        document.getElementById('loadingSpinner').style.display = 'none';
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Failed to load watchlist data', 'danger');
+        document.getElementById('loadingSpinner').style.display = 'none';
+    });
+}
+
+// Clear the entire watchlist
+function clearWatchlist() {
+    if (!confirm('Are you sure you want to clear your entire watchlist? This action cannot be undone.')) {
+        return;
+    }
+    
+    document.getElementById('loadingSpinner').style.display = 'block';
+    
+    fetch('/api/watchlist/clear', {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showAlert('Watchlist cleared successfully', 'success');
+            // Stop further API requests by directly updating the UI
+            const tableBody = document.getElementById('watchlistBody');
+            tableBody.innerHTML = `
+                <tr id="emptyWatchlist">
+                    <td colspan="11" class="text-center">
+                        Your watchlist is empty. Add stocks above to track them.
+                    </td>
+                </tr>`;
+            
+            // Hide loading spinner
+            document.getElementById('loadingSpinner').style.display = 'none';
+        } else {
+            showAlert(data.message || 'Error clearing watchlist', 'danger');
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Failed to clear watchlist', 'danger');
+        document.getElementById('loadingSpinner').style.display = 'none';
+    });
+}
+
+// Render watchlist data
+function renderWatchlist(data) {
+    const tableBody = document.getElementById('watchlistBody');
+    
+    // Clear existing rows
+    tableBody.innerHTML = '';
+    
+    if (data.length === 0) {
+        // Show empty watchlist message
+        tableBody.innerHTML = `
+            <tr id="emptyWatchlist">
+                <td colspan="11" class="text-center">
+                    Your watchlist is empty. Add stocks above to track them.
+                </td>
+            </tr>`;
+        return;
+    }
+    
+    // Add rows for each stock
+    data.forEach(stock => {
+        const row = document.createElement('tr');
+        
+        // Handle error case
+        if (stock.error) {
+            row.innerHTML = `
+                <td>${stock.symbol}</td>
+                <td colspan="9" class="text-danger">Error: ${stock.error}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="removeFromWatchlist(${stock.id}, '${stock.symbol}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+            return;
+        }
+        
+        // Format price change percent
+        let changeDisplay = 'N/A';
+        if (stock.change_percent !== 'N/A') {
+            const changeValue = parseFloat(stock.change_percent);
+            const changeClass = changeValue >= 0 ? 'text-success' : 'text-danger';
+            const changePrefix = changeValue >= 0 ? '+' : '';
+            changeDisplay = `<span class="${changeClass}">${changePrefix}${stock.change_percent}</span>`;
+        }
+        
+        row.innerHTML = `
+            <td><a href="/analyze?symbol=${stock.symbol}" class="fw-bold">${stock.symbol}</a></td>
+            <td>${stock.name}</td>
+            <td>${stock.sector}</td>
+            <td>${stock.price}</td>
+            <td>${changeDisplay}</td>
+            <td class="d-none d-md-table-cell">${stock.market_cap}</td>
+            <td class="d-none d-lg-table-cell">${stock.intangible_assets}</td>
+            <td class="d-none d-lg-table-cell">${stock.current_ratio}</td>
+            <td class="d-none d-xl-table-cell">${stock.institutional_ownership}</td>
+            <td class="d-none d-xl-table-cell">${stock.insider_ownership}</td>
+            <td>
+                <button class="btn btn-sm btn-danger" onclick="removeFromWatchlist(${stock.id}, '${stock.symbol}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+}
+</script>
+{% endblock %} 

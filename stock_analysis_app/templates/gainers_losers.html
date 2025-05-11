@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h2 class="mb-0"><i class="fas fa-chart-line"></i> Market Movers</h2>
+                </div>
+                <div class="card-body">
+                    <!-- Loading Spinner -->
+                    <div id="loadingSpinner" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Fetching market data...</p>
+                    </div>
+                    
+                    <!-- Error Message -->
+                    <div id="errorMessage" class="alert alert-danger" style="display: none;"></div>
+                    
+                    <!-- Market Movers Content -->
+                    <div id="marketMoversContent" style="display: none;">
+                        <!-- Tabs Navigation -->
+                        <ul class="nav nav-tabs mb-4" id="marketMoversTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="gainers-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#gainers" type="button" role="tab" 
+                                        aria-controls="gainers" aria-selected="true">
+                                    <i class="fas fa-arrow-up text-success"></i> Top Gainers
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="losers-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#losers" type="button" role="tab" 
+                                        aria-controls="losers" aria-selected="false">
+                                    <i class="fas fa-arrow-down text-danger"></i> Top Losers
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="active-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#active" type="button" role="tab" 
+                                        aria-controls="active" aria-selected="false">
+                                    <i class="fas fa-fire text-warning"></i> Most Active
+                                </button>
+                            </li>
+                        </ul>
+                        
+                        <!-- Tab Content -->
+                        <div class="tab-content" id="marketMoversTabContent">
+                            <!-- Gainers Tab -->
+                            <div class="tab-pane fade show active" id="gainers" role="tabpanel" aria-labelledby="gainers-tab">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Symbol</th>
+                                                <th>Company</th>
+                                                <th>Price</th>
+                                                <th>Change</th>
+                                                <th>% Change</th>
+                                                <th>Volume</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="gainersTableBody">
+                                            <!-- Data will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Losers Tab -->
+                            <div class="tab-pane fade" id="losers" role="tabpanel" aria-labelledby="losers-tab">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Symbol</th>
+                                                <th>Company</th>
+                                                <th>Price</th>
+                                                <th>Change</th>
+                                                <th>% Change</th>
+                                                <th>Volume</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="losersTableBody">
+                                            <!-- Data will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Most Active Tab -->
+                            <div class="tab-pane fade" id="active" role="tabpanel" aria-labelledby="active-tab">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Symbol</th>
+                                                <th>Company</th>
+                                                <th>Price</th>
+                                                <th>Change</th>
+                                                <th>% Change</th>
+                                                <th>Volume</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="activeTableBody">
+                                            <!-- Data will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <p class="text-muted small">
+                                <i class="fas fa-info-circle"></i> Data provided by Alpha Vantage. 
+                                Last updated: <span id="lastUpdated"></span>
+                            </p>
+                            <button id="refreshButton" class="btn btn-outline-primary">
+                                <i class="fas fa-sync-alt"></i> Refresh Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load market movers data on page load
+    fetchMarketMoversData();
+    
+    // Set up refresh button
+    document.getElementById('refreshButton').addEventListener('click', function() {
+        fetchMarketMoversData();
+    });
+});
+
+// Function to fetch market movers data
+function fetchMarketMoversData() {
+    // Show loading spinner and hide content
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('marketMoversContent').style.display = 'none';
+    document.getElementById('errorMessage').style.display = 'none';
+    
+    // Fetch data from API
+    fetch('/api/gainers-losers')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Update the DOM with the data
+            populateMarketMoversTable(data);
+            
+            // Hide spinner and show content
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('marketMoversContent').style.display = 'block';
+            
+            // Update last updated timestamp
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+        })
+        .catch(error => {
+            console.error('Error fetching market movers data:', error);
+            
+            // Show error message
+            const errorMessageElement = document.getElementById('errorMessage');
+            errorMessageElement.textContent = 'Failed to load market data. Please try again later.';
+            errorMessageElement.style.display = 'block';
+            
+            // Hide spinner
+            document.getElementById('loadingSpinner').style.display = 'none';
+        });
+}
+
+// Function to populate market movers tables
+function populateMarketMoversTable(data) {
+    // Helper function to populate table body
+    function populateTable(tableId, items) {
+        const tableBody = document.getElementById(tableId);
+        tableBody.innerHTML = ''; // Clear existing content
+        
+        if (!items || items.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="7" class="text-center">No data available</td>';
+            tableBody.appendChild(row);
+            return;
+        }
+        
+        // Add rows for each item
+        items.forEach(item => {
+            const row = document.createElement('tr');
+            
+            // Determine CSS class for change values
+            const changeClass = parseFloat(item.change_amount) >= 0 ? 'text-success' : 'text-danger';
+            
+            row.innerHTML = `
+                <td><strong>${item.ticker}</strong></td>
+                <td>${item.price}</td>
+                <td>${item.price}</td>
+                <td class="${changeClass}">${item.change_formatted || item.change_amount}</td>
+                <td class="${changeClass}">${item.change_pct_formatted || item.change_percentage}</td>
+                <td>${item.volume_formatted || item.volume}</td>
+                <td>
+                    <a href="/analyze?symbol=${item.ticker}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-chart-line"></i> Analyze
+                    </a>
+                    <button class="btn btn-sm btn-outline-warning add-to-watchlist" data-symbol="${item.ticker}">
+                        <i class="fas fa-star"></i>
+                    </button>
+                </td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+        
+        // Add event handlers for watchlist buttons
+        const watchlistButtons = tableBody.querySelectorAll('.add-to-watchlist');
+        watchlistButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const symbol = this.getAttribute('data-symbol');
+                addToWatchlist(symbol, this);
+            });
+        });
+    }
+    
+    // Populate each table
+    populateTable('gainersTableBody', data.top_gainers);
+    populateTable('losersTableBody', data.top_losers);
+    populateTable('activeTableBody', data.most_active);
+}
+
+// Function to add stock to watchlist
+function addToWatchlist(symbol, buttonElement) {
+    fetch('/api/watchlist/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ symbol: symbol })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Update button appearance
+            buttonElement.classList.remove('btn-outline-warning');
+            buttonElement.classList.add('btn-warning');
+            buttonElement.setAttribute('disabled', true);
+            buttonElement.innerHTML = '<i class="fas fa-check"></i>';
+            
+            // Show notification
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <strong>${symbol}</strong> added to watchlist!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+            
+            // Insert alert at the top of the content
+            const contentDiv = document.getElementById('marketMoversContent');
+            contentDiv.insertAdjacentHTML('afterbegin', alertHtml);
+            
+            // Auto-dismiss after 3 seconds
+            setTimeout(() => {
+                const alert = document.querySelector('.alert');
+                if (alert) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
+            }, 3000);
+            
+        } else if (data.status === 'exists') {
+            // Already in watchlist
+            buttonElement.classList.remove('btn-outline-warning');
+            buttonElement.classList.add('btn-warning');
+            buttonElement.setAttribute('disabled', true);
+            buttonElement.innerHTML = '<i class="fas fa-check"></i>';
+        } else {
+            // Error
+            console.error('Error adding to watchlist:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error adding to watchlist:', error);
+    });
+}
+</script>
+{% endblock %} 

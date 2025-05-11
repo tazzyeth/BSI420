@@ -1,0 +1,249 @@
+/* General Styles */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+}
+
+/* Navigation */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.navbar-brand i {
+    margin-right: 8px;
+}
+
+.nav-link i {
+    margin-right: 5px;
+}
+
+/* Form Styles */
+.form-control {
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+    padding: 10px 15px;
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    border-color: #80bdff;
+}
+
+.btn-primary {
+    border-radius: 5px;
+    padding: 10px 20px;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Chart Containers */
+.chart-container {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 15px;
+    min-height: 400px;
+}
+
+/* Tab Styles */
+.nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    color: #6c757d;
+    padding: 10px 20px;
+    margin-right: 5px;
+    border-radius: 5px 5px 0 0;
+}
+
+.nav-tabs .nav-link:hover {
+    border: none;
+    color: #007bff;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    background: none;
+    border-bottom: 2px solid #007bff;
+}
+
+/* Metric Cards */
+.metric-card {
+    text-align: center;
+    padding: 15px;
+}
+
+.metric-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.metric-label {
+    font-size: 14px;
+    color: #6c757d;
+}
+
+/* Enhanced styles for stock price and changes */
+.current-price {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #007bff;
+    margin-top: 5px;
+}
+
+.text-success {
+    color: #28a745 !important;
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+
+.text-warning {
+    color: #ffc107 !important;
+}
+
+/* Ownership data styling */
+#insiderActivity {
+    background-color: rgba(40, 167, 69, 0.05);
+    border-radius: 5px;
+    padding: 10px;
+}
+
+#buySellRatio {
+    font-weight: bold;
+}
+
+/* Analyst ratings styling */
+#analystRatings {
+    background-color: rgba(0, 123, 255, 0.05);
+    border-radius: 5px;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+#analystRating {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #007bff;
+}
+
+#buyRatings {
+    color: #28a745;
+}
+
+#holdRatings {
+    color: #ffc107;
+}
+
+#sellRatings {
+    color: #dc3545;
+}
+
+/* Advanced metrics styling */
+#advancedMetrics {
+    margin-top: 1rem;
+}
+
+#advancedMetrics .card-body {
+    padding: 1rem;
+}
+
+#advancedMetrics p {
+    margin-bottom: 0.5rem;
+}
+
+#advancedMetrics strong {
+    color: #6c757d;
+}
+
+#advancedMetrics span {
+    font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 10px;
+    }
+    
+    .card {
+        margin-bottom: 15px;
+    }
+    
+    .nav-tabs .nav-link {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+    
+    .chart-container {
+        min-height: 300px;
+    }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+#companyData {
+    font-size: 0.9rem;
+}
+
+#companyData .info-item {
+    margin-bottom: 0.5rem;
+}
+
+#companyData .info-label {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.loading {
+    display: none;
+    text-align: center;
+    padding: 2rem;
+} 

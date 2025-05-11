@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+    
+    .chart-container {
+        min-height: 500px;
+        width: 100%;
+        height: 70vh; /* Use viewport height to make chart responsive */
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .tab-pane.active .chart-container {
+        height: 75vh; /* Make active chart slightly larger */
+    }
+    
+    /* Make price history chart take up more vertical space */
+    #price.active .chart-container {
+        height: 80vh;
+    }
+    
+    .alert {
+        margin-top: 15px;
+    }
+    
+    /* Custom styling for tabs */
+    .nav-tabs .nav-link.active {
+        font-weight: bold;
+        border-bottom-width: 3px;
+    }
+    
+    /* Ensure tab content fills available space */
+    .tab-content {
+        height: 100%;
+    }
+    
+    .tab-pane {
+        height: 100%;
+        padding: 15px 0;
+    }
+    
+    /* BDOG image styles */
+    .bdog-image {
+        position: fixed;
+        z-index: 1000;
+        height: 180px;
+        width: auto;
+    }
+    
+    .bdog-left {
+        left: 0;
+        top: 15%;
+        transform: translateY(-50%);
+        position: fixed; /* Ensure it stays fixed during scroll */
+    }
+    
+    .bdog-right {
+        right: 0;
+        top: 15%;
+        transform: translateY(-50%);
+        position: fixed; /* Ensure it stays fixed during scroll */
+    }
+    
+    /* BDOG head spinning animation */
+    .bdog-head {
+        width: 100px;
+        height: 100px;
+        margin-bottom: 20px;
+        animation: spin 2s linear infinite;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Hide images on smaller screens */
+    @media (max-width: 1200px) {
+        .bdog-image {
+            display: none;
+        }
+    }
+</style>
+
+<!-- BDOG images -->
+<img src="{{ url_for('static', filename='assets/bdog-left.png') }}" class="bdog-image bdog-left" alt="BDOG Left">
+<img src="{{ url_for('static', filename='assets/bdog-right.png') }}" class="bdog-image bdog-right" alt="BDOG Right">
+
+<div class="container-fluid mt-4">
+    <!-- Search Section -->
+    <div class="row mb-4">
+        <div class="col-md-6 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title text-center mb-4">
+                        <i class="fas fa-search"></i> Stock Analysis
+                    </h2>
+                    <form id="analysisForm" class="mb-4">
+                        <div class="input-group">
+                            <input type="text" class="form-control form-control-lg" id="ticker" name="ticker" 
+                                   placeholder="Enter stock ticker (e.g., AAPL)" value="{{ ticker|default('') }}" required>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-chart-line"></i> Analyze
+                            </button>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="disableCharts" name="disable_charts" checked>
+                            <label class="form-check-label" for="disableCharts">
+                                <strong>Disable charts</strong> (basic view only - more reliable)
+                            </label>
+                        </div>
+                    </form>
+                    <div class="text-center mt-2">
+                        <a href="/watchlist" class="btn btn-outline-primary">
+                            <i class="fas fa-star"></i> View Your Watchlist
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+        <div class="text-center">
+            <img src="{{ url_for('static', filename='assets/bdog-head.png') }}" class="bdog-head" alt="Loading">
+            <p class="mt-3">Fetching data for <span id="loadingTicker" class="fw-bold"></span>...</p>
+            <p class="text-muted small">This may take a few moments while we collect comprehensive data from our sources.</p>
+        </div>
+    </div>
+    
+    <!-- Success/Error Alert -->
+    <div id="alertMessage" class="alert alert-success mt-3" style="display: none;"></div>
+
+    <!-- Company Data Section -->
+    <div id="companyData" class="row" style="display: none;">
+        <!-- Company Overview Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <h3 class="card-title" id="companyName"></h3>
+                        <button id="addToWatchlistBtn" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-star"></i> Add to Watchlist
+                        </button>
+                    </div>
+                    <p class="text-muted" id="description"></p>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p><strong>Sector:</strong> <span id="sector"></span></p>
+                            <p><strong>Industry:</strong> <span id="industry"></span></p>
+                            <p><strong>Market Cap:</strong> <span id="market-cap"></span></p>
+                            <p><strong>P/E Ratio:</strong> <span id="pe-ratio"></span></p>
+                            <p><strong>Forward P/E:</strong> <span id="forward-pe"></span></p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>EPS:</strong> <span id="eps-overview"></span></p>
+                            <p><strong>PEG Ratio:</strong> <span id="peg-ratio"></span></p>
+                            <p><strong>Dividend Yield:</strong> <span id="dividend-yield"></span></p>
+                            <p><strong>Beta:</strong> <span id="beta"></span></p>
+                            <p><strong>52 Week Range:</strong> <span id="52-week-range"></span></p>
+                        </div>
+                        <div class="col-md-4">
+                            <p><strong>Current Ratio:</strong> <span id="current-ratio"></span></p>
+                            <p><strong>Profit Margin:</strong> <span id="profit-margin"></span></p>
+                            <p><strong>ROE:</strong> <span id="roe"></span></p>
+                            <p><strong>ROA:</strong> <span id="roa"></span></p>
+                            <p><strong>Intangible Assets:</strong> <span id="intangible-assets"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-chart-pie"></i> Key Metrics</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <p><strong>EPS:</strong><br><span id="eps-key"></span></p>
+                            <p><strong>PEG Ratio:</strong><br><span id="pegRatio"></span></p>
+                            <p><strong>Forward P/E:</strong><br><span id="forwardPE"></span></p>
+                            <p><strong>Dividend Yield:</strong><br><span id="dividendYield"></span></p>
+                        </div>
+                        <div class="col-6">
+                            <p><strong>Market Cap:</strong><br><span id="marketCap"></span></p>
+                            <p><strong>Current Ratio:</strong><br><span id="currentRatio-key"></span></p>
+                            <p><strong>Float:</strong><br><span id="float-key"></span></p>
+                            <p><strong>Short Float:</strong><br><span id="shortFloat"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ownership & Analyst Card -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-chart-bar"></i> Trading Volume & Market Activity</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <p><strong>Insider Ownership:</strong><br><span id="insider-ownership"></span></p>
+                            <p><strong>Institutional Ownership:</strong><br><span id="institutional-ownership"></span></p>
+                            <p><strong>Float:</strong><br><span id="float-market"></span></p>
+                        </div>
+                        <div class="col-6" id="marketMetrics">
+                            <p><strong>52-Week High:</strong><br><span id="weekHigh"></span></p>
+                            <p><strong>52-Week Low:</strong><br><span id="weekLow"></span></p>
+                            <p><strong>Current Price:</strong><br><span id="currentPrice"></span></p>
+                            <p><strong>Daily Change:</strong><br><span id="dailyChange"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Advanced Metrics Section -->
+    <div id="advancedMetrics" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0"><i class="fas fa-calculator"></i> Advanced Financial Metrics</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <p><strong>Current Ratio:</strong><br><span id="currentRatio-adv"></span></p>
+                            <p><strong>Debt to Equity:</strong><br><span id="debtToEquity"></span></p>
+                            <p><strong>Total Assets:</strong><br><span id="totalAssets"></span></p>
+                            <p><strong>Total Liabilities:</strong><br><span id="totalLiabilities"></span></p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><strong>Gross Margin:</strong><br><span id="grossMargin"></span></p>
+                            <p><strong>Operating Margin:</strong><br><span id="operatingMargin"></span></p>
+                            <p><strong>Shareholder Equity:</strong><br><span id="shareholderEquity"></span></p>
+                            <p><strong>Long Term Debt:</strong><br><span id="longTermDebt"></span></p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><strong>Return on Equity (ROE):</strong><br><span id="returnOnEquity"></span></p>
+                            <p><strong>Return on Assets (ROA):</strong><br><span id="returnOnAssets"></span></p>
+                            <p><strong>Cash Flow to Revenue:</strong><br><span id="cashFlowToRevenue"></span></p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><strong>Enterprise Value:</strong><br><span id="enterpriseValue"></span></p>
+                            <p><strong>Intangible Assets:</strong><br><span id="intangibleAssets-adv"></span></p>
+                            <p><strong>Free Cash Flow:</strong><br><span id="freeCashFlow"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ownership & Assets Card -->
+    <div class="row mt-3" id="ownershipAssetsSection" style="display: none;">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="mb-0"><i class="fas fa-users"></i> Ownership & Assets</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Institutional Ownership:</strong><br><span id="institutionalOwnership"></span></p>
+                            <p><strong>Insider Ownership:</strong><br><span id="insiderOwnership"></span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Intangible Assets:</strong><br><span id="intangibleAssets"></span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Results Section -->
+    <div id="analysisResults" class="row" style="display: none;">
+        <div class="col-12 px-0">
+            <div class="card shadow-sm">
+                <div class="card-body p-0 p-md-3">
+                    <ul class="nav nav-tabs" id="analysisTabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="summary-tab" data-bs-toggle="tab" href="#summary" role="tab">
+                                <i class="fas fa-chart-bar"></i> <span class="d-none d-md-inline">Summary</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="price-tab" data-bs-toggle="tab" href="#price" role="tab">
+                                <i class="fas fa-chart-line"></i> <span class="d-none d-md-inline">Price History</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="tech-tab" data-bs-toggle="tab" href="#tech" role="tab">
+                                <i class="fas fa-chart-area"></i> <span class="d-none d-md-inline">Technical</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="volume-tab" data-bs-toggle="tab" href="#volume" role="tab">
+                                <i class="fas fa-chart-column"></i> <span class="d-none d-md-inline">Volume</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="financial-tab" data-bs-toggle="tab" href="#financial" role="tab">
+                                <i class="fas fa-calculator"></i> <span class="d-none d-md-inline">Financial</span>
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content mt-2 mt-md-3" id="analysisTabContent">
+                        <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                            <div class="chart-container" id="summaryChart"></div>
+                        </div>
+                        <div class="tab-pane fade" id="price" role="tabpanel">
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <p class="text-muted">
+                                        <i class="fas fa-info-circle"></i> 
+                                        Candlestick chart showing price history over time. Each candlestick represents one trading day.
+                                        <span class="d-none d-md-inline">
+                                            Green candles indicate days when the price closed higher than it opened, 
+                                            while red candles indicate days when the price closed lower than it opened.
+                                        </span>
+                                    </p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="btn-group mb-2">
+                                        <button class="btn btn-sm btn-outline-secondary zoom-out-btn" data-chart-id="priceChart">
+                                            <i class="fas fa-search-minus"></i> Zoom Out
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary zoom-in-btn" data-chart-id="priceChart">
+                                            <i class="fas fa-search-plus"></i> Zoom In
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary fullscreen-btn" data-chart-id="priceChart">
+                                            <i class="fas fa-expand"></i> Fullscreen
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="priceChart"></div>
+                        </div>
+                        <div class="tab-pane fade" id="tech" role="tabpanel">
+                            <div class="chart-container" id="techChart"></div>
+                        </div>
+                        <div class="tab-pane fade" id="volume" role="tabpanel">
+                            <div class="chart-container" id="volumeChart"></div>
+                        </div>
+                        <div class="tab-pane fade" id="financial" role="tabpanel">
+                            <div class="chart-container" id="financialChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add JavaScript for watchlist functionality -->
+<script>
+// Add to watchlist functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit form if ticker is provided
+    const tickerInput = document.getElementById('ticker');
+    if (tickerInput && tickerInput.value.trim()) {
+        document.getElementById('analysisForm').dispatchEvent(new Event('submit'));
+    }
+
+    const addToWatchlistBtn = document.getElementById('addToWatchlistBtn');
+    if (addToWatchlistBtn) {
+        addToWatchlistBtn.addEventListener('click', function() {
+            const ticker = currentTicker;
+            if (!ticker) {
+                showAlert('No stock selected to add to watchlist', 'warning');
+                return;
+            }
+            
+            // Add to watchlist
+            fetch('/api/watchlist/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ symbol: ticker })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert(`${ticker} added to watchlist`, 'success', true);
+                } else if (data.status === 'exists') {
+                    showAlert(data.message, 'warning', true);
+                } else {
+                    showAlert(data.message || 'Error adding to watchlist', 'danger', true);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Failed to add stock to watchlist', 'danger', true);
+            });
+        });
+    }
+});
+</script>
+{% endblock %} 
